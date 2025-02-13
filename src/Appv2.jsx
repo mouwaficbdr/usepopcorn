@@ -30,11 +30,14 @@ export default function App() {
   
 
   useEffect(() => {
+
+    const controller = new AbortController()
+
     const fetchMovies = async () => {
         setIsLoading(true)
         setError("")
       try {
-        const res = await fetch(`http://www.omdbapi.com/?apikey=${KEY}&s=${ query}`);
+        const res = await fetch(`http://www.omdbapi.com/?apikey=${KEY}&s=${ query}`, {signal: controller.signal});
 
         if (!res.ok)throw new Error("Something went wrong with fetching movies")
 
@@ -43,10 +46,13 @@ export default function App() {
         if(data.Response === "False") throw new Error("Movie not found")
 
         setMovies(data.Search)
-
+          setError("")
       } catch(error) {
         console.error("Error: ", error.message)
-        setError(error.message)
+
+        if (error.name !== "AbortError") {
+          setError(error.message)
+        }
 
       } finally {
         setIsLoading(false);
@@ -61,6 +67,10 @@ export default function App() {
 
     fetchMovies();
     
+    return () => {
+      controller.abort();
+    }
+
   }, [query])
 
   return (
@@ -239,8 +249,13 @@ function MovieDetails({ selectedId, onCloseMovie, onAddWatched }) {
   }, [selectedId])
 
   useEffect(() => {
-    if (title)
-      document.title = `Movie | ${title}`
+    if (!title) return;
+    document.title = `Movie | ${title}`
+
+    return () => {
+      document.title = "usePopcorn" 
+    }
+
   }, [title])
 
   return (
