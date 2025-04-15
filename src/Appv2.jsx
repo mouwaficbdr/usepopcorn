@@ -11,69 +11,79 @@ const KEY = '8324d8f6';
 export default function App() {
   const [query, setQuery] = useState('');
   const [movies, setMovies] = useState([]);
-  const [watched, setWatched] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('')
+  const [error, setError] = useState('');
   const [selectedId, setSelectedId] = useState(null);
+
+  // const [watched, setWatched] = useState([]);
+  const [watched, setWatched] = useState(() => {
+    const storedValue = localStorage.getItem("watched")
+    return storedValue ? JSON.parse(storedValue) : []
+  });
 
   function handleSelectMovie(id) {
     setSelectedId((selectedId) => (id === selectedId ? null : id));
   }
 
   function handleCloseMovie() {
-    setSelectedId()
+    setSelectedId();
   }
 
   function handleAddWatched(movie) {
-    setWatched((watched) =>[...watched, movie])
+    setWatched((watched) => [...watched, movie]);
+
+    // localStorage.setItem('watched', JSON.stringify([...watched, movie]))
   }
-  
 
   useEffect(() => {
+    localStorage.setItem('watched', JSON.stringify(watched));
+  }, [watched]);
 
-    const controller = new AbortController()
+  useEffect(() => {
+    const controller = new AbortController();
 
     const fetchMovies = async () => {
-        setIsLoading(true)
-        setError("")
+      setIsLoading(true);
+      setError('');
       try {
-        const res = await fetch(`http://www.omdbapi.com/?apikey=${KEY}&s=${ query}`, {signal: controller.signal});
+        const res = await fetch(
+          `http://www.omdbapi.com/?apikey=${KEY}&s=${query}`,
+          { signal: controller.signal }
+        );
 
-        if (!res.ok)throw new Error("Something went wrong with fetching movies")
+        if (!res.ok)
+          throw new Error('Something went wrong with fetching movies');
 
-        const data = await res.json()
+        const data = await res.json();
 
-        if(data.Response === "False") throw new Error("Movie not found")
+        if (data.Response === 'False') throw new Error('Movie not found');
 
-        setMovies(data.Search)
-          setError("")
-      } catch(error) {
-        console.error("Error: ", error.message)
+        setMovies(data.Search);
+        setError('');
+      } catch (error) {
+        console.error('Error: ', error.message);
 
-        if (error.name !== "AbortError") {
-          setError(error.message)
+        if (error.name !== 'AbortError') {
+          setError(error.message);
         }
-
       } finally {
         setIsLoading(false);
-      } 
-    }
+      }
+    };
 
     if (query.length < 3) {
-      setMovies([])
-      setError("")
-      return
+      setMovies([]);
+      setError('');
+      return;
     }
 
-    handleCloseMovie()
+    handleCloseMovie();
     fetchMovies();
-    
+
     return () => {
       controller.abort();
-    }
-
-  }, [query])
-
+    };
+  }, [query]);
 
   return (
     <>
@@ -85,7 +95,9 @@ export default function App() {
       <Main>
         <Box>
           {isLoading && <Loader />}
-          {!isLoading && !error && <MovieList movies={movies} onSelectMovie={handleSelectMovie} />}
+          {!isLoading && !error && (
+            <MovieList movies={movies} onSelectMovie={handleSelectMovie} />
+          )}
           {error && <ErrorMessage message={error} />}
         </Box>
 
@@ -99,7 +111,7 @@ export default function App() {
           ) : (
             <>
               <WatchedSummary watched={watched} />
-              <WatchedMoviesList watched={watched} />
+              <WatchedMoviesList watched={watched} setWatched={setWatched} />
             </>
           )}
         </Box>
@@ -347,17 +359,22 @@ function WatchedSummary({ watched }) {
   );
 }
 
-function WatchedMoviesList({ watched }) {
+function WatchedMoviesList({ watched, setWatched }) {
   return (
     <ul className="list">
       {watched.map((movie) => (
-        <WatchedMovie movie={movie} key={movie.imdbID} />
+        <WatchedMovie movie={movie} key={movie.imdbID} setWatched={setWatched} />
       ))}
     </ul>
   );
 }
 
-function WatchedMovie({ movie }) {
+function WatchedMovie({ movie, setWatched }) {
+
+  function handleDeleteFromWatched() {
+    setWatched((watched) => watched.filter((element) => element.title != movie.title))
+  }
+
   return (
     <li>
       <img src={movie.poster} alt={`${movie.title} poster`} />
@@ -375,6 +392,7 @@ function WatchedMovie({ movie }) {
           <span>⏳</span>
           <span>{movie.runtime} min</span>
         </p>
+        <button className='btn-delete' onClick={handleDeleteFromWatched}>❌</button>
       </div>
     </li>
   );
